@@ -1,7 +1,4 @@
 // app/api/tasks/[id]/route.js
-// GET    /api/tasks/:id — get single task
-// PUT    /api/tasks/:id — update task
-// DELETE /api/tasks/:id — delete task
 
 import { connectDB } from '@/lib/db';
 import Task from '@/models/Task';
@@ -24,17 +21,19 @@ async function findOwnedTask(taskId, userId) {
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(request, { params }) {
   try {
+    const { id } = await params; // ← await params (required in Next.js 15+)
     const user = getUserFromRequest(request);
     if (!user) return errorResponse('Not authenticated', 401);
 
     await connectDB();
-    const task = await findOwnedTask(params.id, user.id);
+    const task = await findOwnedTask(id, user.id);
     if (!task) return errorResponse('Task not found', 404);
 
     return successResponse({
       task: { ...task.toObject(), description: decrypt(task.description) },
     });
   } catch (error) {
+    console.error('GET /api/tasks/[id] error:', error);
     return errorResponse('Internal server error', 500);
   }
 }
@@ -42,6 +41,7 @@ export async function GET(request, { params }) {
 // ── PUT ───────────────────────────────────────────────────────────────────────
 export async function PUT(request, { params }) {
   try {
+    const { id } = await params; // ← await params
     const user = getUserFromRequest(request);
     if (!user) return errorResponse('Not authenticated', 401);
 
@@ -60,7 +60,7 @@ export async function PUT(request, { params }) {
     if (Object.keys(errors).length > 0) return errorResponse('Validation failed', 422, errors);
 
     await connectDB();
-    const task = await findOwnedTask(params.id, user.id);
+    const task = await findOwnedTask(id, user.id);
     if (!task) return errorResponse('Task not found', 404);
 
     // Only update fields that were actually sent
@@ -72,9 +72,13 @@ export async function PUT(request, { params }) {
 
     return successResponse({
       message: 'Task updated',
-      task: { ...task.toObject(), description: description !== undefined ? description.trim() : decrypt(task.description) },
+      task: {
+        ...task.toObject(),
+        description: description !== undefined ? description.trim() : decrypt(task.description),
+      },
     });
   } catch (error) {
+    console.error('PUT /api/tasks/[id] error:', error);
     return errorResponse('Internal server error', 500);
   }
 }
@@ -82,16 +86,18 @@ export async function PUT(request, { params }) {
 // ── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(request, { params }) {
   try {
+    const { id } = await params; // ← await params
     const user = getUserFromRequest(request);
     if (!user) return errorResponse('Not authenticated', 401);
 
     await connectDB();
-    const task = await findOwnedTask(params.id, user.id);
+    const task = await findOwnedTask(id, user.id);
     if (!task) return errorResponse('Task not found', 404);
 
     await task.deleteOne();
     return successResponse({ message: 'Task deleted' });
   } catch (error) {
+    console.error('DELETE /api/tasks/[id] error:', error);
     return errorResponse('Internal server error', 500);
   }
 }
